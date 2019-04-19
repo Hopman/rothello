@@ -10,9 +10,9 @@ mod bot;
 // STRUCTS
 // Debug for printing
 // Clone for cloning
-#[derive(Debug,Clone)]
+#[derive(Clone)]
 pub struct Board {
-    field: Vec<usize>,
+    field: [usize; 64],
 }
 
 impl Copy for Board { }
@@ -21,7 +21,7 @@ impl Copy for Board { }
 impl Board {
     // Setup board
     fn start() -> Board {
-        let mut field = vec![0; 64];
+        let mut field = [0; 64];
         // Standard start layout
         field[27] = 1;
         field[28] = 2;
@@ -38,25 +38,13 @@ impl Board {
             for j in 0..8 {
                 v.push(self.field[(i*8)+j]);
             }
-            println!("{:?}", v);
+            //println!("{:?}", v);
         }
         println!("");
     }
-    // Get score + print score
-    fn score(&self) {
-        let mut one = 0;
-        let mut two = 0;
-        for i in &self.field {
-            match i {
-                1 => one += 1,
-                2 => two += 1,
-                _ => (),
-            }
-        }
-        println!("{}:{}", one, two);
-    }
+
     // Set a piece
-    fn execute_move(&mut self, stones: (usize, Vec<Vec<usize>>), opponent_color: usize) {
+    fn execute_move(&mut self, stones: &(usize, Vec<Vec<usize>>), opponent_color: usize) {
         let color = match opponent_color {
             1 => 2,
             2 => 1,
@@ -102,7 +90,6 @@ fn main() {
         steps += 1;
         board.print();
 
-        board.score();
     }
 }
 
@@ -115,8 +102,8 @@ fn turn(mut board: Board, color: usize) {
 
     // Print valid moves
     println!("Valid moves:");
-    for (i, m) in valid_moves.iter().enumerate() {
-        println!("{}: {}", i, m.0);
+    for m in &valid_moves {
+        println!("{}", m.0);
     }
 
     let mut valid = false;
@@ -135,6 +122,13 @@ fn turn(mut board: Board, color: usize) {
                 continue
             },
         };
+        for choice in &valid_moves {
+            if choice.0 == player_input_int {
+                valid = true;
+                board.execute_move(choice, color);
+                break
+            }
+        }
     }
 }
 
@@ -248,7 +242,7 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, pm: usize, color: usize) -
             // Walk
             pos = pos + step;
             // Break if we find edge or empty square
-            if (pos + step) < 0 || pos > 63 || pos % 8 == 0 || (pos + 1) % 8 == 0 || board.field[(pos + step) as usize] == 0 {
+            if (pos + step) < 0 || (pos + step) > 63 || pos % 8 == 0 || (pos + 1) % 8 == 0 || board.field[(pos + step) as usize] == 0 {
                 break
             // Add position if next pos is enemy
             } else if board.field[(pos + step) as usize] == color {
