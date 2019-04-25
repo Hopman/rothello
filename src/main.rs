@@ -4,18 +4,33 @@
 use std::io::{self};
 
 // mods
-mod bot;
+//mod bot;
 
 //
 // STRUCTS
-// Debug for printing
+#[derive(Debug)]
+struct Node {
+    //        move   score
+    content: (usize, isize),
+    children: Vec<Node>,
+}
+
+impl Node {
+    fn add_child(&mut self, child: Node) {
+        self.children.push(child);
+    }
+    fn new((mv, score): (usize, isize)) -> Node {
+        Node {
+            content: (mv, score),
+            children: Vec::new(),
+        }
+    }
+}
+
 // Clone for cloning
-#[derive(Clone)]
 pub struct Board {
     field: [usize; 64],
 }
-
-impl Copy for Board { }
 
 // Board implementations
 impl Board {
@@ -36,9 +51,9 @@ impl Board {
         for i in 0..8 {
             let mut v = Vec::new();
             for j in 0..8 {
-                v.push(self.field[(i*8)+j]);
+                v.push(&self.field[(i*8)+j]);
             }
-            //println!("{:?}", v);
+            println!("{:?}", v);
         }
         println!("");
     }
@@ -79,22 +94,22 @@ fn main() {
         if steps >= 60 {
             finished = true;
         }
+        println!("Turn: {}", steps);
 
-        // Set a piece for white
-        turn(board, 2);
+        // Player turn (white)
+        turn(&mut board, 2);
         steps += 1;
         board.print();
 
-        // Set a piece for black
-        bot::bot_turn(board, 1);
+        // Player turn (black)
+        turn(&mut board, 1);
         steps += 1;
         board.print();
-
     }
 }
 
 //      board              color = color of opponent
-fn turn(mut board: Board, color: usize) {
+fn turn(mut board: &mut Board, color: usize) {
     // Get valid moves
     // Vec<usize, Vec<usize>>
     //     move   flips
@@ -122,9 +137,11 @@ fn turn(mut board: Board, color: usize) {
                 continue
             },
         };
+        // If choice is in the list of moves, execute move and break
         for choice in &valid_moves {
             if choice.0 == player_input_int {
                 valid = true;
+                // EXECUTE
                 board.execute_move(choice, color);
                 break
             }
@@ -132,37 +149,26 @@ fn turn(mut board: Board, color: usize) {
     }
 }
 
-fn check_player_move(board: &Board, mut plint: usize, color: usize) -> Option<usize> {
-
-    if plint == 0 {
-        println!("Zero is not a valid move");
-        return None
-    } else {
-        // Makes for easy programming :)
-        plint -= 1;
+// Get valid moves: walk through the board and check what moves are valid
+//                                                      Move , List of vectors that will flip
+fn get_valid_moves(board: &Board, color: usize) -> Vec<(usize, Vec<Vec<usize>>)> {
+    let mut valid_moves = Vec::new();
+    for i in 0..63 {
+        if board.field[i] != 0 {
+            continue
+        }
+        let neighbours = check_neighbours(board, i, color);
+        if neighbours.len() == 0 {
+            continue
+        }
+        let flips = get_flips(board, &neighbours, i, color);
+        if flips.len() == 0 {
+            continue
+        }
+        valid_moves.push((i, flips));
     }
-
-    // See if move is valid:
-    //  Between 1 and 64
-    if plint > 63 {
-        println!("Move outside of playing field.");
-        return None
-    }
-    //  Empty square
-    if board.field[plint] != 0 {
-        println!("Invalid move: Non-empty square");
-        return None
-    }
-    //  Check if move is valid
-    let targets = check_neighbours(board, plint, color);
-    if targets.len() == 0 {
-        println!("Invalid move: Not next to opponent");
-        return None
-    }
-
-    return Some(plint)
+    return valid_moves
 }
-
 
 // Check for neighbours
 pub fn check_neighbours(board: &Board, pmove: usize, color: usize) -> Vec<usize> {
@@ -258,22 +264,3 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, pm: usize, color: usize) -
     return flips
 }
 
-// Get valid moves: walk through the board and check what moves are valid
-fn get_valid_moves(board: &Board, color: usize) -> Vec<(usize, Vec<Vec<usize>>)> {
-    let mut valid_moves = Vec::new();
-    for i in 0..63 {
-        if board.field[i] != 0 {
-            continue
-        }
-        let neighbours = check_neighbours(board, i, color);
-        if neighbours.len() == 0 {
-            continue
-        }
-        let flips = get_flips(board, &neighbours, i, color);
-        if flips.len() == 0 {
-            continue
-        }
-        valid_moves.push((i, flips));
-    }
-    return valid_moves
-}
