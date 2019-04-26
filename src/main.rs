@@ -4,12 +4,13 @@
 use std::io::{self};
 
 // mods
-//mod bot;
+mod bot;
 
 // STRUCTS
 //
 // Board struct
 // field: 8x8 array
+#[derive(Clone)]
 pub struct Board {
     field: [usize; 64],
 }
@@ -70,6 +71,21 @@ impl Board {
         }
     }
 
+    // Count score of board
+    // board: Board
+    fn score(&self) -> (usize, usize) {
+        let mut score = (0, 0);
+        for i in self.field.iter() {
+            if i == &1 {
+                score.0 += 1;
+            } else if i == &2 {
+                score.1 += 1;
+            }
+        }
+        return score
+    }
+
+
 }
 
 // MAIN
@@ -92,29 +108,35 @@ fn main() {
         println!("Turn: {}", steps);
 
         // Player turn (white)
-        turn(&mut board, 2);
+        finished = turn(&mut board, 2);
         steps += 1;
         board.print();
 
         // Player turn (black)
-        turn(&mut board, 1);
+        let bot_move = bot::bot_turn(&mut board, 1, 0);
+        for mv in get_valid_moves(&board, 1) {
+            if mv.0 == bot_move {
+                board.execute_move(&mv, 1);
+                break
+            }
+        }
         steps += 1;
         board.print();
     }
 }
 
 // Turn function: Get valid moves and then ask user for move
-//  board: Board Struct
-//  color: Opponent's color
+//  board:  Board Struct
+//  color:  Opponent's color
 //
-//  return nothing: Board is mutated in struct
-fn turn(mut board: &mut Board, color: usize) {
+//  return: bool; if true, the gameloop ends
+fn turn(mut board: &mut Board, color: usize) -> bool {
 
     // Get valid moves
     let valid_moves = get_valid_moves(&board, color);
     if valid_moves.len() == 0 {
         println!("No more valid moves.");
-        return
+        return true
     }
 
     // Print valid moves
@@ -154,6 +176,7 @@ fn turn(mut board: &mut Board, color: usize) {
             }
         }
     }
+    return false
 }
 
 // Get valid moves: walk through the board and check what moves are valid
@@ -281,10 +304,16 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, opponent_
             pos = pos + step;
 
             // Break if we find edge or empty square
-            if (pos + step) < 0 || (pos + step) > 63  ||
-                pos % 8 == 0    || (pos + 1) % 8 == 0 {
-                    break
-                }
+            if (pos + step) < 0 || (pos + step) > 63 {
+                break
+            }
+            if step == 1 && (pos + step + 1) % 8 == 0 {
+                break
+            }
+
+            if step == -1 && (pos + step) % 8 == 0 {
+                break
+            }
 
             // Get color of next position
             let next = board.field[(pos + step) as usize];
