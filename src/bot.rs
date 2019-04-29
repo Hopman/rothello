@@ -32,7 +32,7 @@ pub fn bot_turn(mut board: &mut Board, color: usize, depth: usize) -> usize {
 }
 
 fn bot_rec(mut board: &mut Board, color: usize, depth: usize, mut node: Node) -> Node {
-    if depth > 6 {
+    if depth > 8 {
         return node;
     }
     // Get valid moves

@@ -238,15 +238,11 @@ pub fn check_neighbours(board: &Board, pos: usize, color: usize) -> Vec<usize> {
         if board.field[pos - 8] == color {
             neighbours.push(pos - 8);
         }
-        if pos % 8 != 0 {
-            if board.field[pos - 7] == color {
-                neighbours.push(pos - 7);
-            }
+        if (pos + 1) % 8 != 0 && board.field[pos - 7] == color {
+            neighbours.push(pos - 7);
         }
-        if (pos + 1) % 8 != 0 {
-            if board.field[pos - 9] == color {
-                neighbours.push(pos - 9);
-            }
+        if board.field[pos - 9] == color {
+            neighbours.push(pos - 9);
         }
     }
     // Check below position
@@ -255,15 +251,11 @@ pub fn check_neighbours(board: &Board, pos: usize, color: usize) -> Vec<usize> {
         if board.field[pos + 8] == color {
             neighbours.push(pos + 8);
         }
-        if pos % 8 != 0 {
-            if board.field[pos + 7] == color {
-                neighbours.push(pos + 7);
-            }
+        if pos & 8 != 0 && board.field[pos + 7] == color {
+            neighbours.push(pos + 7);
         }
-        if (pos + 1) % 8 != 0 {
-            if board.field[pos + 9] == color {
-                neighbours.push(pos + 9);
-            }
+        if pos != 55 && board.field[pos + 9] == color {
+            neighbours.push(pos + 9);
         }
     }
     return neighbours
