@@ -29,7 +29,6 @@ pub fn bot_turn(mut board: &mut Board, color: usize, depth: usize) -> usize {
     };
 
     for i in valid_moves {
-        println!("I -> {:?}", i);
         let mut mv_board = board.clone();
         mv_board.execute_move(&i, color);
         let handle = thread::spawn(move || {

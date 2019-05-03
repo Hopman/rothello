@@ -115,7 +115,6 @@ fn main() {
         // Player turn (black)
         let bot_move = bot::bot_turn(&mut board, 1, 0);
         for mv in get_valid_moves(&board, 1) {
-            println!("JOLO: {:?}", mv);
             if mv.0 == bot_move {
                 board.execute_move(&mv, 1);
                 break
