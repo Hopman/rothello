@@ -93,7 +93,6 @@ fn main() {
     // Setup
     let mut finished = false;
     let mut board = Board::start();
-    let mut steps = 0;
 
     // Start print
     println!("Start:");
@@ -101,26 +100,19 @@ fn main() {
 
     // Game loop
     while ! finished {
-        // There's never more than 60 steps
-        if steps >= 60 {
-            finished = true;
-        }
-        println!("Turn: {}", steps);
-
         // Player turn (white)
         finished = turn(&mut board, 2);
-        steps += 1;
         board.print();
 
         // Player turn (black)
-        let bot_move = bot::bot_turn(&mut board, 1, 0);
+        let bot_move = bot::bot_turn(&mut board, 1);
         for mv in get_valid_moves(&board, 1) {
             if mv.0 == bot_move {
                 board.execute_move(&mv, 1);
                 break
             }
         }
-        steps += 1;
+        // Print the board
         board.print();
     }
 }
@@ -130,7 +122,7 @@ fn main() {
 //  color:  Opponent's color
 //
 //  return: bool; if true, the gameloop ends
-fn turn(mut board: &mut Board, color: usize) -> bool {
+fn turn(board: &mut Board, color: usize) -> bool {
 
     // Get valid moves
     let valid_moves = get_valid_moves(&board, color);
