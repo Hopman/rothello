@@ -27,6 +27,15 @@ impl Board {
         field[28] = 2;
         field[35] = 2;
         field[36] = 1;
+        // CORNER TEST
+        //field[14] = 2;
+        //field[21] = 1;
+        //field[9] = 2;
+        //field[18] = 1;
+        //field[54] = 2;
+        //field[45] = 1;
+        //field[49] = 2;
+        //field[42] = 1;
         return Board {
             field: field,
         }
@@ -243,7 +252,7 @@ pub fn check_neighbours(board: &Board, pos: usize, color: usize) -> Vec<usize> {
         if board.field[pos + 8] == color {
             neighbours.push(pos + 8);
         }
-        if pos & 8 != 0 && board.field[pos + 7] == color {
+        if pos != 0 && board.field[pos + 7] == color {
             neighbours.push(pos + 7);
         }
         if pos != 55 && board.field[pos + 9] == color {

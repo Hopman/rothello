@@ -93,7 +93,7 @@ pub fn bot_turn(board: &mut Board, color: usize) -> usize {
 //  return: Child Node
 fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
     // Expect depth
-    if depth > 8 {
+    if depth > 6 {
         return node;
     }
 
@@ -123,10 +123,7 @@ fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
         // Initiate new node
         let new_node = Node {
             mvval: mv.0,
-            score: {
-                let bscore = board.score();
-                bscore.1 as isize - bscore.0 as isize
-            },
+            score: calc_score(&board_new, mv.0, color),
             children: Vec::new(),
         };
 
@@ -140,4 +137,23 @@ fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
         node.score += child.score;
     }
     return node
+}
+
+fn calc_score(board: &Board, mv: usize, color: usize) -> isize {
+    if color == 2 {
+        let score = match mv {
+            0 => -2500,
+            7 => -2500,
+            63 => -2500,
+            56 => -2500,
+            _ => {
+                let board_score = board.score();
+                board_score.1 as isize - board_score.0 as isize
+            },
+        };
+        return score
+    } else {
+        let board_score = board.score();
+        return board_score.1 as isize - board_score.0 as isize
+    }
 }
