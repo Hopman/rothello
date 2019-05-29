@@ -27,15 +27,24 @@ impl Board {
         field[28] = 2;
         field[35] = 2;
         field[36] = 1;
-        // CORNER TEST
-        //field[14] = 2;
-        //field[21] = 1;
-        //field[9] = 2;
-        //field[18] = 1;
-        //field[54] = 2;
-        //field[45] = 1;
-        //field[49] = 2;
-        //field[42] = 1;
+        return Board {
+            field: field,
+        }
+    }
+    fn test() -> Board {
+        let mut field = [0; 64];
+        field[16] = 1;
+        field[25] = 2;
+        return Board {
+            field: field,
+        }
+    }
+    fn numbers() -> Board {
+        // Field of board is always 8x8
+        let mut field = [0; 64];
+        for i in 0..64 {
+            field[i] = i;
+        }
         return Board {
             field: field,
         }
@@ -43,15 +52,20 @@ impl Board {
 
     // Print function board
     fn print(&self) {
+        // Header: Column letters
+        println!("   a  b  c  d  e  f  g  h");
+
         // 8 high
         for i in 0..8 {
             let mut v = Vec::new();
+
             // 8 wide
             for j in 0..8 {
-                v.push(&self.field[(i*8)+j]);
+                v.push(self.field[(i*8)+j]);
             }
-            // Print row
-            println!("{:?}", v);
+
+            // Print row: Row number (top high) and row
+            println!("{} {:?}", 8-i, v);
         }
         // Empty line
         println!("");
@@ -107,13 +121,14 @@ fn main() {
     println!("Start:");
     board.print();
 
+
     // Game loop
     while ! finished {
         // Player turn (white)
         finished = turn(&mut board, 2);
         board.print();
 
-        // Player turn (black)
+        // Bot turn (black)
         let bot_move = bot::bot_turn(&mut board, 1);
         for mv in get_valid_moves(&board, 1) {
             if mv.0 == bot_move {
@@ -140,10 +155,33 @@ fn turn(board: &mut Board, color: usize) -> bool {
         return true
     }
 
-    // Print valid moves
+    // Create readable valid moves
+    let mut readable_moves = Vec::new();
     println!("Valid moves:");
+
+    // Parse valid moves to x/y position
     for m in &valid_moves {
-        println!("{}", m.0);
+        // X position
+        let x = match (m.0 % 8) + 1 {
+            1 => 'a',
+            2 => 'b',
+            3 => 'c',
+            4 => 'd',
+            5 => 'e',
+            6 => 'f',
+            7 => 'g',
+            8 => 'h',
+            _ => panic!("Impossibru!"),
+        };
+        // Y position (top = 8)
+        let y = 8 - (m.0 / 8);
+        let pos = format!("{}{}", x, y);
+
+        // Print moves
+        println!("{}", pos);
+
+        // Push to readable valid move vec
+        readable_moves.push((pos, m));
     }
 
     // Get valid input
@@ -157,22 +195,14 @@ fn turn(board: &mut Board, color: usize) -> bool {
         // Trim input
         let player_input_trimmed = player_input.trim();
 
-        // Try casting to int
-        let player_input_int = match player_input_trimmed.parse::<usize>() {
-            Ok(n) => n,
-            Err(e) => {
-                println!("Error: {}", e);
-                // On error, try again
-                continue
-            },
-        };
-
-        // If choice is in the list of moves, execute move
-        for choice in &valid_moves {
-            if choice.0 == player_input_int {
+        // If choice is in the list of readable valid moves, execute move
+        for choice in &readable_moves {
+            // choice.0 = [a1 - h8]
+            if (choice.0) == player_input_trimmed {
                 // Input was valid
                 valid_input = true;
-                board.execute_move(choice, color);
+                // Pass valid move (usize, <Vec<Vec<usize>>>)
+                board.execute_move(choice.1, color);
                 break
             }
         }
@@ -190,11 +220,11 @@ fn get_valid_moves(board: &Board, color: usize) -> Vec<(usize, Vec<Vec<usize>>)>
     let mut valid_moves = Vec::new();
     // Iterate over all squares in the field
     for i in 0..64 {
-        // If the square isn't empty continue
+        // If the square isn't empty go to next
         if board.field[i] != 0 {
             continue
         }
-        // Get all neighbouring squares; if an opponent piece is found; continue
+        // Get all neighbouring squares; if no opponent piece is found go to next
         let neighbours = check_neighbours(board, i, color);
         if neighbours.len() == 0 {
             continue
@@ -235,27 +265,27 @@ pub fn check_neighbours(board: &Board, pos: usize, color: usize) -> Vec<usize> {
     }
     // Check above position
     // Check if we are not on top row
-    if pos > 8 {
+    if pos > 7 {
         if board.field[pos - 8] == color {
             neighbours.push(pos - 8);
         }
         if (pos + 1) % 8 != 0 && board.field[pos - 7] == color {
             neighbours.push(pos - 7);
         }
-        if board.field[pos - 9] == color {
+        if pos % 8 != 0 && board.field[pos - 9] == color {
             neighbours.push(pos - 9);
         }
     }
     // Check below position
     // Check if we're not on bottom row
-    if pos < 56 {
+    if pos < 54 {
         if board.field[pos + 8] == color {
             neighbours.push(pos + 8);
         }
-        if pos != 0 && board.field[pos + 7] == color {
+        if pos % 8 != 0&& board.field[pos + 7] == color {
             neighbours.push(pos + 7);
         }
-        if pos != 55 && board.field[pos + 9] == color {
+        if (pos + 1) % 8 != 0 && board.field[pos + 9] == color {
             neighbours.push(pos + 9);
         }
     }

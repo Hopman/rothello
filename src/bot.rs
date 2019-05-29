@@ -74,6 +74,15 @@ pub fn bot_turn(board: &mut Board, color: usize) -> usize {
     let mut bot_move = 0;
     let mut bot_max_score = isize::min_value();
     for c in &top_node.children {
+        if c.mvval == 0 {
+            return c.mvval
+        } else if c.mvval == 7 {
+            return c.mvval
+        } else if c.mvval == 56 {
+            return c.mvval
+        } else if c.mvval == 63 {
+            return c.mvval
+        }
         if c.score > bot_max_score {
             bot_max_score = c.score;
             bot_move = c.mvval;
@@ -93,7 +102,7 @@ pub fn bot_turn(board: &mut Board, color: usize) -> usize {
 //  return: Child Node
 fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
     // Expect depth
-    if depth > 6 {
+    if depth > 5 {
         return node;
     }
 
@@ -153,7 +162,16 @@ fn calc_score(board: &Board, mv: usize, color: usize) -> isize {
         };
         return score
     } else {
-        let board_score = board.score();
-        return board_score.1 as isize - board_score.0 as isize
+        let score = match mv {
+            0 => 2500,
+            7 => 2500,
+            63 => 2500,
+            56 => 2500,
+            _ => {
+                let board_score = board.score();
+                board_score.1 as isize - board_score.0 as isize
+            },
+        };
+        return score
     }
 }
