@@ -150,7 +150,7 @@ fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node
 }
 
 fn calc_score(board: &Board, mv: usize, color: usize) -> isize {
-    if color == 2 {
+    if color == 1 {
         let score = match mv {
             0 => -2500,
             7 => -2500,
