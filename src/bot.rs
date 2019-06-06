@@ -1,6 +1,5 @@
 use crate::*;
 
-use std::thread;
 
 // Simple node struct for tree-like moves
 #[derive(Clone, Debug)]
@@ -18,11 +17,12 @@ impl Node {
 }
 
 // Public funciont
-//  board: Board
-//  color: opponent's color
+//  board:      Board
+//  color:      opponent's color
+//  max_depth:  maximum depth of Nodes
 //
-//  return: Return move position
-pub fn bot_turn(board: &mut Board, color: usize) -> usize {
+//  return:     Return move position
+pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> usize {
 
     // Get valid moves for bot
     let valid_moves = get_valid_moves(&board, color);
@@ -48,13 +48,13 @@ pub fn bot_turn(board: &mut Board, color: usize) -> usize {
         let handle = thread::spawn(move || {
             // Thread node
             let t_node = Node {
-                mvval: i.0,
+                mvval: i.mv_int,
                 score: 0,
                 children: Vec::new(),
             };
             // Necessary?
             let t_color = color;
-            let result_node = bot_rec(&mv_board, t_color, 0, t_node);
+            let result_node = bot_rec(&mv_board, t_color, max_depth, 0, t_node);
 
             // Return node
             return result_node
@@ -94,15 +94,16 @@ pub fn bot_turn(board: &mut Board, color: usize) -> usize {
 }
 
 // Recursive bot function
-//  board: Board
-//  color: Opponent's color
-//  depth: Depth of recursion
-//  node:  'parent' Node
+//  board:      Board
+//  color:      Opponent's color
+//  max_depth:  Maximum depth of nodes
+//  depth:      Depth of recursion
+//  node:       'parent' Node
 //
-//  return: Child Node
-fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
+//  return:     Child Node
+fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node: Node) -> Node {
     // Expect depth
-    if depth > 5 {
+    if depth > max_depth {
         return node;
     }
 
@@ -110,8 +111,7 @@ fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
     let valid_moves = get_valid_moves(&board, color);
 
     // If there's no moves, collapse
-    if valid_moves.len() == 0 {
-        return node;
+    if valid_moves.len() == 0 { return node;
     }
 
     // Iterate over valid moves, recursive
@@ -131,13 +131,13 @@ fn bot_rec(board: &Board, color: usize, depth: usize, mut node: Node) -> Node {
 
         // Initiate new node
         let new_node = Node {
-            mvval: mv.0,
-            score: calc_score(&board_new, mv.0, color),
+            mvval: mv.mv_int,
+            score: calc_score(&board_new, mv.mv_int, color),
             children: Vec::new(),
         };
 
         // Recursive
-        let child_node = bot_rec(&mut board_new, color_new, depth + 1, new_node);
+        let child_node = bot_rec(&mut board_new, color_new, max_depth, depth + 1, new_node);
         node.add_child(child_node);
     }
 

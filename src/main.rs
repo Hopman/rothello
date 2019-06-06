@@ -31,50 +31,49 @@ impl Board {
             field: field,
         }
     }
-    fn test() -> Board {
-        let mut field = [0; 64];
-        field[16] = 1;
-        field[25] = 2;
-        return Board {
-            field: field,
-        }
-    }
-    fn numbers() -> Board {
-        // Field of board is always 8x8
-        let mut field = [0; 64];
-        for i in 0..64 {
-            field[i] = i;
-        }
-        return Board {
-            field: field,
-        }
-    }
+
+    // DEBUGGING: Print number values of board
+    //fn numbers() -> Board {
+    //    // Field of board is always 8x8
+    //    let mut field = [0; 64];
+    //    for i in 0..64 {
+    //        field[i] = i;
+    //    }
+    //    return Board {
+    //        field: field,
+    //    }
+    //}
 
     // Print function board
     fn print(&self) {
         // Header: Column letters
-        println!("   a  b  c  d  e  f  g  h");
+        println!("   a b c d e f g h");
 
         // 8 high
         for i in 0..8 {
-            let mut v = Vec::new();
+            let mut v = String::new();
 
             // 8 wide
             for j in 0..8 {
-                v.push(self.field[(i*8)+j]);
+                match self.field[(i*8)+j] {
+                    0 => v.push_str(". "),
+                    1 => v.push_str("o "),
+                    2 => v.push_str("* "),
+                    _ => panic!("Impossibru field push."),
+                };
             }
 
             // Print row: Row number (top high) and row
-            println!("{} {:?}", 8-i, v);
+            println!("{} [{}]", 8-i, v);
         }
         // Empty line
         println!("");
     }
 
     // Execute move on board
-    // stones:         tuple of possition and flip vectors
+    // stones:         Move struct
     // opponent_color: color of opponents pieces
-    fn execute_move(&mut self, stones: &(usize, Vec<Vec<usize>>), opponent_color: usize) {
+    fn execute_move(&mut self, stones: &Move, opponent_color: usize) {
         // Get own color
         let color = match opponent_color {
             1 => 2,
@@ -83,10 +82,10 @@ impl Board {
         };
 
         // Set down own stone
-        self.field[stones.0] = color;
+        self.field[stones.mv_int] = color;
 
         // For every vector/line iterate
-        for vector in &stones.1 {
+        for vector in &stones.flips {
             for x in vector {
                 // Flip stones
                 self.field[*x] = color;
@@ -111,33 +110,66 @@ impl Board {
 
 }
 
+pub struct Move {
+    mv_int: usize,
+    flips:    Vec<Vec<usize>>,
+}
+
 // MAIN
 fn main() {
     // Setup
     let mut finished = false;
     let mut board = Board::start();
 
+    // Get max depth
+    let depth = depth_input();
+
     // Start print
     println!("Start:");
     board.print();
 
-
     // Game loop
     while ! finished {
-        // Player turn (white)
-        finished = turn(&mut board, 2);
+        // Player turn (black)
+        finished = turn(&mut board, 1);
         board.print();
 
         // Bot turn (black)
-        let bot_move = bot::bot_turn(&mut board, 1);
-        for mv in get_valid_moves(&board, 1) {
-            if mv.0 == bot_move {
-                board.execute_move(&mv, 1);
+        let bot_move = bot::bot_turn(&mut board, 2, depth);
+        for mv in get_valid_moves(&board, 2) {
+            if mv.mv_int == bot_move {
+                board.execute_move(&mv, 2);
                 break
             }
         }
         // Print the board
         board.print();
+    }
+}
+
+// Get max depth from input
+//
+// return:  max_depth usize
+fn depth_input() -> usize {
+    // While there is no valid input, keep asking
+    loop {
+        // Get input from stdin
+        println!("Give max depth:");
+        let mut depth_input = String::new();
+        io::stdin().read_line(&mut depth_input).expect("Could not read?");
+
+        // Trim input
+        let depth_input_trimmed = depth_input.trim();
+        match depth_input_trimmed.parse::<usize>() {
+            Ok(n) => {
+                return n
+            },
+            Err(e) => {
+                println!("Error: {}", e);
+                // On error, try again
+                continue
+            },
+        };
     }
 }
 
@@ -156,13 +188,13 @@ fn turn(board: &mut Board, color: usize) -> bool {
     }
 
     // Create readable valid moves
-    let mut readable_moves = Vec::new();
+    let mut readable_move_list = Vec::new();
     println!("Valid moves:");
 
     // Parse valid moves to x/y position
     for m in &valid_moves {
         // X position
-        let x = match (m.0 % 8) + 1 {
+        let x = match (m.mv_int % 8) + 1 {
             1 => 'a',
             2 => 'b',
             3 => 'c',
@@ -171,17 +203,19 @@ fn turn(board: &mut Board, color: usize) -> bool {
             6 => 'f',
             7 => 'g',
             8 => 'h',
-            _ => panic!("Impossibru!"),
+            _ => panic!("Impossibru X value"),
         };
         // Y position (top = 8)
-        let y = 8 - (m.0 / 8);
+        let y = 8 - (m.mv_int / 8);
+
+        // Create position string
         let pos = format!("{}{}", x, y);
 
         // Print moves
         println!("{}", pos);
 
         // Push to readable valid move vec
-        readable_moves.push((pos, m));
+        readable_move_list.push((pos, m));
     }
 
     // Get valid input
@@ -196,7 +230,7 @@ fn turn(board: &mut Board, color: usize) -> bool {
         let player_input_trimmed = player_input.trim();
 
         // If choice is in the list of readable valid moves, execute move
-        for choice in &readable_moves {
+        for choice in &readable_move_list {
             // choice.0 = [a1 - h8]
             if (choice.0) == player_input_trimmed {
                 // Input was valid
@@ -216,7 +250,7 @@ fn turn(board: &mut Board, color: usize) -> bool {
 //
 //  return: A list of tuples;
 //          tuple: Valid move with a list of flip-vectors
-fn get_valid_moves(board: &Board, color: usize) -> Vec<(usize, Vec<Vec<usize>>)> {
+fn get_valid_moves(board: &Board, color: usize) -> Vec<Move> {
     let mut valid_moves = Vec::new();
     // Iterate over all squares in the field
     for i in 0..64 {
@@ -235,7 +269,11 @@ fn get_valid_moves(board: &Board, color: usize) -> Vec<(usize, Vec<Vec<usize>>)>
             continue
         }
         // Push valid move and flips
-        valid_moves.push((i, flips));
+        valid_moves.push(
+            Move {
+                mv_int: i,
+                flips: flips,
+        });
     }
     // Return all valid moves with flips
     return valid_moves
@@ -359,4 +397,40 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, opponent_
     }
     // Return flips
     return flips
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn botfight() {
+        let mut board = Board::start();
+        loop {
+            let depth = 2;
+            let val_moves = get_valid_moves(&board, 1);
+            if val_moves.len() == 0 {
+                break
+            }
+            let bot_move = bot::bot_turn(&mut board, 1, depth);
+            for mv in val_moves {
+                if mv.mv_int == bot_move {
+                    board.execute_move(&mv, 1);
+                    break
+                }
+            }
+            let val_moves = get_valid_moves(&board, 2);
+            let bot_move = bot::bot_turn(&mut board, 2, depth);
+            if val_moves.len() == 0 {
+                break
+            }
+            for mv in val_moves {
+                if mv.mv_int == bot_move {
+                    board.execute_move(&mv, 2);
+                    break
+                }
+            }
+        }
+        board.print();
+    }
 }
