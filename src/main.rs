@@ -27,22 +27,26 @@ impl Board {
         field[28] = 2;
         field[35] = 2;
         field[36] = 1;
+
+        // Return the Board
         return Board {
             field: field,
         }
     }
 
-    // DEBUGGING: Print number values of board
-    //fn numbers() -> Board {
-    //    // Field of board is always 8x8
-    //    let mut field = [0; 64];
-    //    for i in 0..64 {
-    //        field[i] = i;
-    //    }
-    //    return Board {
-    //        field: field,
-    //    }
-    //}
+    // Create a Board with number values
+    // #[dead_code]
+    #[cfg(debug_assertions)]
+    fn numbers() -> Board {
+        // Field of board is always 8x8
+        let mut field = [0; 64];
+        for i in 0..64 {
+            field[i] = i;
+        }
+        return Board {
+            field: field,
+        }
+    }
 
     // Print function board
     fn print(&self) {
@@ -110,9 +114,10 @@ impl Board {
 
 }
 
+// Simple struct for move
 pub struct Move {
     mv_int: usize,
-    flips:    Vec<Vec<usize>>,
+    flips:  Vec<Vec<usize>>,
 }
 
 // MAIN
@@ -350,12 +355,15 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, opponent_
 
     // Iterate through all possible targets
     for t in targets {
-        // Position
+        // Position of move
         let mut pos = position as isize;
-        // Isize target
+
+        // isize target
         let ti = *t as isize;
-        // Step
+
+        // Step; target pos - move pos
         let step = ti - pos;
+
         // Flip positions
         let mut fp = Vec::new();
 
@@ -364,14 +372,17 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, opponent_
             // Walk
             pos = pos + step;
 
-            // Break if we find edge or empty square
+            // Break if we go out of bound
             if (pos + step) < 0 || (pos + step) > 63 {
                 break
             }
-            if step == 1 && (pos + step + 1) % 8 == 0 {
+
+            // If step is to the right, don't move to next line
+            if step == 1 && (pos + step) % 8 == 0 {
                 break
             }
 
+            // Do not move to previous line when step is to the left
             if step == -1 && (pos + step) % 8 == 0 {
                 break
             }
@@ -380,14 +391,14 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, opponent_
             let next = board.field[(pos + step) as usize];
 
             // Check the color of next pos
-            // If 0: Dind't run into own piece
+            //  if 0: Dind't run into own piece
+            //  else if opponent's color, push position to flip position vector
+            //  Only push flip position vector to actual flips vector when we run into our own piece
+            //  then break
             if next == 0 {
                 break
-            // If opponent's color, push position to flip position vector
             } else if next == opponent_color {
                 fp.push(pos as usize);
-            // Only push flip position vector to actual flips vector when we run into our own piece
-            // then break
             } else if next == color {
                 fp.push(pos as usize);
                 flips.push(fp);
@@ -432,5 +443,7 @@ mod tests {
             }
         }
         board.print();
+        let final_score = board.score();
+        println!("Final score: {}-{}", final_score.0, final_score.1);
     }
 }

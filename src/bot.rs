@@ -152,10 +152,10 @@ fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node
 fn calc_score(board: &Board, mv: usize, color: usize) -> isize {
     if color == 1 {
         let score = match mv {
-            0 => -2500,
-            7 => -2500,
-            63 => -2500,
-            56 => -2500,
+            0 => -100_000,
+            7 => -100_000,
+            63 => -100_000,
+            56 => -100_000,
             _ => {
                 let board_score = board.score();
                 board_score.1 as isize - board_score.0 as isize
@@ -164,10 +164,10 @@ fn calc_score(board: &Board, mv: usize, color: usize) -> isize {
         return score
     } else {
         let score = match mv {
-            0 => 2500,
-            7 => 2500,
-            63 => 2500,
-            56 => 2500,
+            0 => 100_000,
+            7 => 100_000,
+            63 => 100_000,
+            56 => 100_000,
             _ => {
                 let board_score = board.score();
                 board_score.1 as isize - board_score.0 as isize
