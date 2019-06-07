@@ -145,14 +145,12 @@ fn main() {
 
     // Game loop
     while ! finished {
-        // Player turn (black)
+        // Player turn (white)
         finished = turn(&mut board, 1);
         board.print();
 
-        // Bot turn (black)
-        let bot_move = bot::bot_turn(&mut board, 2, depth);
-        board.execute_move(&bot_move, 2);
-        // Print the board
+        let bot_move = bot::bot_turn(&mut board, 1, depth);
+        board.execute_move(&bot_move, 1);
         board.print();
     }
 }
@@ -333,7 +331,7 @@ pub fn check_neighbours(board: &Board, pos: usize, color: usize) -> Vec<usize> {
         if pos % 8 != 0&& board.field[pos + 7] == color {
             neighbours.push(pos + 7);
         }
-        if (pos + 1) % 8 != 0 && board.field[pos + 9] == color {
+        if (pos + 2) % 8 != 0 && board.field[pos + 9] == color {
             neighbours.push(pos + 9);
         }
     }
@@ -388,7 +386,7 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, opponent_
             }
 
             // Do not move to previous line when step is to the left
-            if step == -1 && (pos + step) % 8 == 0 {
+            if step == -1 && pos % 8 == 0 {
                 break
             }
 
@@ -423,7 +421,7 @@ mod tests {
     fn botfight() {
         let mut board = Board::start();
         loop {
-            let depth = 6;
+            let depth = 2;
             let val_moves = get_valid_moves(&board, 1);
             if val_moves.len() == 0 {
                 break

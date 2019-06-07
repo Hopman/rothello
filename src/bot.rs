@@ -158,14 +158,14 @@ fn calc_score(board: &Board, wcai: usize, mv: usize,  color: usize, depth: usize
     let mut return_score = match wcai {
         1 => {
             if score.0 == 0 {
-                -10_000
+                -1_000_000
             } else {
                 score.1 as isize - score.0 as isize
             }
         },
         2 => {
             if score.1 == 0 {
-                -10_000
+                -1_000_000
             } else {
                 score.0 as isize - score.1 as isize
             }
@@ -175,7 +175,7 @@ fn calc_score(board: &Board, wcai: usize, mv: usize,  color: usize, depth: usize
 
     // If my color; postive, otherwhise negative
     match mv {
-        0 | 7 | 56 | 63 => return_score = 5_000,
+        0 | 7 | 56 | 63 => return_score = -20_000,
         _ => (),
     }
 
