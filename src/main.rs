@@ -98,27 +98,37 @@ impl Board {
     }
 
     // Count score of board
-    // board: Board
+    //                  black, white
     fn score(&self) -> (usize, usize) {
         let mut score = (0, 0);
         for i in self.field.iter() {
-            if i == &1 {
-                score.0 += 1;
-            } else if i == &2 {
-                score.1 += 1;
+            match i {
+                0 => (),
+                1 => score.1 += 1,
+                2 => score.0 += 1,
+                _ => panic!("Impossibru: counting score: value on field"),
             }
         }
         return score
     }
-
-
 }
 
 // Simple struct for move
+#[derive(Clone,Debug)]
 pub struct Move {
     mv_int: usize,
     flips:  Vec<Vec<usize>>,
 }
+
+impl Move {
+    fn new() -> Move {
+        Move {
+            mv_int: 0,
+            flips: vec![vec![0]],
+        }
+    }
+}
+
 
 // MAIN
 fn main() {
@@ -141,12 +151,7 @@ fn main() {
 
         // Bot turn (black)
         let bot_move = bot::bot_turn(&mut board, 2, depth);
-        for mv in get_valid_moves(&board, 2) {
-            if mv.mv_int == bot_move {
-                board.execute_move(&mv, 2);
-                break
-            }
-        }
+        board.execute_move(&bot_move, 2);
         // Print the board
         board.print();
     }
@@ -418,31 +423,22 @@ mod tests {
     fn botfight() {
         let mut board = Board::start();
         loop {
-            let depth = 2;
+            let depth = 6;
             let val_moves = get_valid_moves(&board, 1);
             if val_moves.len() == 0 {
                 break
             }
             let bot_move = bot::bot_turn(&mut board, 1, depth);
-            for mv in val_moves {
-                if mv.mv_int == bot_move {
-                    board.execute_move(&mv, 1);
-                    break
-                }
-            }
+            board.execute_move(&bot_move, 1);
+            board.print();
             let val_moves = get_valid_moves(&board, 2);
             let bot_move = bot::bot_turn(&mut board, 2, depth);
             if val_moves.len() == 0 {
                 break
             }
-            for mv in val_moves {
-                if mv.mv_int == bot_move {
-                    board.execute_move(&mv, 2);
-                    break
-                }
-            }
+            board.execute_move(&bot_move, 2);
+            board.print();
         }
-        board.print();
         let final_score = board.score();
         println!("Final score: {}-{}", final_score.0, final_score.1);
     }

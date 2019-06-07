@@ -5,7 +5,7 @@ use std::thread;
 // Simple node struct for tree-like moves
 #[derive(Clone, Debug)]
 struct Node {
-    mvval: usize,
+    mv: Move,
     score: isize,
     children: Vec<Node>,
 }
@@ -23,14 +23,19 @@ impl Node {
 //  max_depth:  maximum depth of Nodes
 //
 //  return:     Return move position
-pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> usize {
+pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> Move {
+    let wcai = match color {
+        1 => 2,
+        2 => 1,
+        _ => panic!("Impossible what color am I."),
+    };
 
     // Get valid moves for bot
     let valid_moves = get_valid_moves(&board, color);
 
     // Create top node
     let mut top_node = Node {
-        mvval: usize::max_value(),
+        mv: Move::new(),
         score: 0,
         children: Vec::new(),
     };
@@ -39,23 +44,23 @@ pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> usize {
     let mut handles = Vec::new();
 
     // For all possible moves, spawn a thread
-    for i in valid_moves {
+    for v_move in valid_moves {
 
         // Execute the possible move first on cloned board
         let mut mv_board = board.clone();
-        mv_board.execute_move(&i, color);
+        mv_board.execute_move(&v_move, color);
 
         // Spawn threads
         let handle = thread::spawn(move || {
             // Thread node
             let t_node = Node {
-                mvval: i.mv_int,
+                mv: v_move,
                 score: 0,
                 children: Vec::new(),
             };
             // Necessary?
             let t_color = color;
-            let result_node = bot_rec(&mv_board, t_color, max_depth, 0, t_node);
+            let result_node = bot_rec(&mv_board, wcai, t_color, max_depth, 0, t_node);
 
             // Return node
             return result_node
@@ -72,21 +77,14 @@ pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> usize {
     }
 
     // Get bot maximum score/move
-    let mut bot_move = 0;
+    let mut bot_move = Move::new();
     let mut bot_max_score = isize::min_value();
-    for c in &top_node.children {
-        if c.mvval == 0 {
-            return c.mvval
-        } else if c.mvval == 7 {
-            return c.mvval
-        } else if c.mvval == 56 {
-            return c.mvval
-        } else if c.mvval == 63 {
-            return c.mvval
-        }
-        if c.score > bot_max_score {
-            bot_max_score = c.score;
-            bot_move = c.mvval;
+
+    // TODO Fancy me
+    for child in &top_node.children {
+        if child.score > bot_max_score {
+            bot_move = child.mv.clone();
+            bot_max_score = child.score;
         }
     }
 
@@ -102,7 +100,7 @@ pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> usize {
 //  node:       'parent' Node
 //
 //  return:     Child Node
-fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node: Node) -> Node {
+fn bot_rec(board: &Board, wcai: usize, color: usize, max_depth: usize, depth: usize, mut node: Node) -> Node {
     // Expect depth
     if depth > max_depth {
         return node;
@@ -112,7 +110,8 @@ fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node
     let valid_moves = get_valid_moves(&board, color);
 
     // If there's no moves, collapse
-    if valid_moves.len() == 0 { return node;
+    if valid_moves.len() == 0 {
+        return node;
     }
 
     // Iterate over valid moves, recursive
@@ -132,13 +131,13 @@ fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node
 
         // Initiate new node
         let new_node = Node {
-            mvval: mv.mv_int,
-            score: calc_score(&board_new, mv.mv_int, color),
+            mv: mv.clone(),
+            score: calc_score(&board_new, wcai, mv.mv_int, color, depth),
             children: Vec::new(),
         };
 
         // Recursive
-        let child_node = bot_rec(&mut board_new, color_new, max_depth, depth + 1, new_node);
+        let child_node = bot_rec(&mut board_new, wcai, color_new, max_depth, depth + 1, new_node);
         node.add_child(child_node);
     }
 
@@ -149,30 +148,41 @@ fn bot_rec(board: &Board, color: usize, max_depth: usize, depth: usize, mut node
     return node
 }
 
-fn calc_score(board: &Board, mv: usize, color: usize) -> isize {
-    if color == 1 {
-        let score = match mv {
-            0 => -100_000,
-            7 => -100_000,
-            63 => -100_000,
-            56 => -100_000,
-            _ => {
-                let board_score = board.score();
-                board_score.1 as isize - board_score.0 as isize
-            },
-        };
-        return score
+// Calculate score for a Node
+fn calc_score(board: &Board, wcai: usize, mv: usize,  color: usize, depth: usize) -> isize {
+    // score: tuple (black, white)
+    let score = board.score();
+
+
+    // Basic board score; Return score is (my piece count - their piece count)
+    let mut return_score = match wcai {
+        1 => {
+            if score.0 == 0 {
+                -10_000
+            } else {
+                score.1 as isize - score.0 as isize
+            }
+        },
+        2 => {
+            if score.1 == 0 {
+                -10_000
+            } else {
+                score.0 as isize - score.1 as isize
+            }
+        }
+        _ => panic!("Impossibru wcai match in calc_score:\nScore: {:?}\nWCAI: {:?}", score, wcai),
+    };
+
+    // If my color; postive, otherwhise negative
+    match mv {
+        0 | 7 | 56 | 63 => return_score = 5_000,
+        _ => (),
+    }
+
+    // Retrun score; positive for me, negative for opponent
+    if wcai == color {
+        return return_score
     } else {
-        let score = match mv {
-            0 => 100_000,
-            7 => 100_000,
-            63 => 100_000,
-            56 => 100_000,
-            _ => {
-                let board_score = board.score();
-                board_score.1 as isize - board_score.0 as isize
-            },
-        };
-        return score
+        return (return_score * -1)
     }
 }
