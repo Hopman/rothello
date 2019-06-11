@@ -113,7 +113,7 @@ pub struct Player {
     disk: Disk,
     oppo: Disk,
     // Top Disk (for bot)
-    topd: Option<Disk>,
+    topd: Disk,
 }
 
 
@@ -151,14 +151,14 @@ fn main() {
         player_type: PlayerType::Hmn,
         disk: Disk::Black,
         oppo: Disk::White,
-        topd: None,
+        topd: Disk::Black,
     };
 
     let player2 = Player {
         player_type: PlayerType::Bot,
         disk: Disk::White,
         oppo: Disk::Black,
-        topd: Some(Disk::White),
+        topd: Disk::White,
     };
 
     // Game loop
@@ -433,13 +433,13 @@ mod tests {
                 player_type: PlayerType::Bot,
                 disk: Disk::Black,
                 oppo: Disk::White,
-                topd: Some(Disk::Black),
+                topd: Disk::Black,
             };
             let bot1 = Player {
                 player_type: PlayerType::Bot,
                 disk: Disk::White,
                 oppo: Disk::Black,
-                topd: Some(Disk::White),
+                topd: Disk::White,
             };
 
             let val_moves = get_valid_moves(&board, bot0);

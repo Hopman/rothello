@@ -53,7 +53,6 @@ pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
                 children: Vec::new(),
             };
             // Necessary?
-            let t_player = player;
             let result_node = bot_rec(&mv_board, player, max_depth, 0, t_node);
 
             // Return node
@@ -125,7 +124,7 @@ fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut no
         // Initiate new node
         let new_node = Node {
             mv: mv.clone(),
-            score: calc_score(&board_new, mv.mv_int, player, depth),
+            score: calc_score(&board_new, mv.mv_int, player),
             children: Vec::new(),
         };
 
@@ -142,10 +141,9 @@ fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut no
 }
 
 // Calculate score for a Node
-fn calc_score(board: &Board, mv: usize, player: Player, depth: usize) -> isize {
+fn calc_score(board: &Board, mv: usize, player: Player) -> isize {
     // score: tuple (black, white)
     let score = board.score();
-
 
     // Basic board score; Return score is (my piece count - their piece count)
     let mut return_score = match player.disk {
@@ -173,11 +171,9 @@ fn calc_score(board: &Board, mv: usize, player: Player, depth: usize) -> isize {
     }
 
     // Retrun score; positive for me, negative for opponent
-    let pd = player.disk;
-    let po = player.oppo;
-    match player.topd {
-        Some(pd) => return return_score,
-        Some(po) => return return_score * -1,
-        None => panic!("Impossibru None in player.topd match."),
+    if player.topd == player.disk {
+        return return_score
+    } else {
+        return return_score * -1
     }
 }
