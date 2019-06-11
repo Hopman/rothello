@@ -23,15 +23,9 @@ impl Node {
 //  max_depth:  maximum depth of Nodes
 //
 //  return:     Return move position
-pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> Move {
-    let wcai = match color {
-        1 => 2,
-        2 => 1,
-        _ => panic!("Impossible what color am I."),
-    };
-
+pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
     // Get valid moves for bot
-    let valid_moves = get_valid_moves(&board, color);
+    let valid_moves = get_valid_moves(&board, player);
 
     // Create top node
     let mut top_node = Node {
@@ -48,7 +42,7 @@ pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> Move {
 
         // Execute the possible move first on cloned board
         let mut mv_board = board.clone();
-        mv_board.execute_move(&v_move, color);
+        mv_board.execute_move(&v_move, player);
 
         // Spawn threads
         let handle = thread::spawn(move || {
@@ -59,8 +53,8 @@ pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> Move {
                 children: Vec::new(),
             };
             // Necessary?
-            let t_color = color;
-            let result_node = bot_rec(&mv_board, wcai, t_color, max_depth, 0, t_node);
+            let t_player = player;
+            let result_node = bot_rec(&mv_board, player, max_depth, 0, t_node);
 
             // Return node
             return result_node
@@ -94,20 +88,19 @@ pub fn bot_turn(board: &mut Board, color: usize, max_depth: usize) -> Move {
 
 // Recursive bot function
 //  board:      Board
-//  color:      Opponent's color
 //  max_depth:  Maximum depth of nodes
 //  depth:      Depth of recursion
 //  node:       'parent' Node
 //
 //  return:     Child Node
-fn bot_rec(board: &Board, wcai: usize, color: usize, max_depth: usize, depth: usize, mut node: Node) -> Node {
+fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut node: Node) -> Node {
     // Expect depth
     if depth > max_depth {
         return node;
     }
 
     // Get valid moves
-    let valid_moves = get_valid_moves(&board, color);
+    let valid_moves = get_valid_moves(&board, player);
 
     // If there's no moves, collapse
     if valid_moves.len() == 0 {
@@ -120,24 +113,24 @@ fn bot_rec(board: &Board, wcai: usize, color: usize, max_depth: usize, depth: us
         let mut board_new = board.clone();
 
         // Flip color
-        let color_new = match color {
-            1 => 2,
-            2 => 1,
-            _ => panic!("Bot panic color swap."),
+        let player_new = Player {
+            player_type: PlayerType::Bot,
+            disk: player.oppo,
+            oppo: player.disk,
+            topd: player.topd,
         };
-
         // Execute move on the new board
-        board_new.execute_move(&mv, color);
+        board_new.execute_move(&mv, player);
 
         // Initiate new node
         let new_node = Node {
             mv: mv.clone(),
-            score: calc_score(&board_new, wcai, mv.mv_int, color, depth),
+            score: calc_score(&board_new, mv.mv_int, player, depth),
             children: Vec::new(),
         };
 
         // Recursive
-        let child_node = bot_rec(&mut board_new, wcai, color_new, max_depth, depth + 1, new_node);
+        let child_node = bot_rec(&mut board_new, player_new, max_depth, depth + 1, new_node);
         node.add_child(child_node);
     }
 
@@ -149,28 +142,28 @@ fn bot_rec(board: &Board, wcai: usize, color: usize, max_depth: usize, depth: us
 }
 
 // Calculate score for a Node
-fn calc_score(board: &Board, wcai: usize, mv: usize,  color: usize, depth: usize) -> isize {
+fn calc_score(board: &Board, mv: usize, player: Player, depth: usize) -> isize {
     // score: tuple (black, white)
     let score = board.score();
 
 
     // Basic board score; Return score is (my piece count - their piece count)
-    let mut return_score = match wcai {
-        1 => {
+    let mut return_score = match player.disk {
+        Disk::Black => {
             if score.0 == 0 {
                 -1_000_000
             } else {
                 score.1 as isize - score.0 as isize
             }
         },
-        2 => {
+        Disk::White => {
             if score.1 == 0 {
                 -1_000_000
             } else {
                 score.0 as isize - score.1 as isize
             }
         }
-        _ => panic!("Impossibru wcai match in calc_score:\nScore: {:?}\nWCAI: {:?}", score, wcai),
+        Disk::Empty => panic!("Impossibure Empty disk in return score."),
     };
 
     // If my color; postive, otherwhise negative
@@ -180,9 +173,11 @@ fn calc_score(board: &Board, wcai: usize, mv: usize,  color: usize, depth: usize
     }
 
     // Retrun score; positive for me, negative for opponent
-    if wcai == color {
-        return return_score
-    } else {
-        return (return_score * -1)
+    let pd = player.disk;
+    let po = player.oppo;
+    match player.topd {
+        Some(pd) => return return_score,
+        Some(po) => return return_score * -1,
+        None => panic!("Impossibru None in player.topd match."),
     }
 }
