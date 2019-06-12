@@ -19,7 +19,6 @@ impl Node {
 
 // Public funciont
 //  board:      Board
-//  color:      opponent's color
 //  max_depth:  maximum depth of Nodes
 //
 //  return:     Return move position
@@ -38,22 +37,24 @@ pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
     let mut handles = Vec::new();
 
     // For all possible moves, spawn a thread
-    for v_move in valid_moves {
+    for valid_move in valid_moves {
 
         // Execute the possible move first on cloned board
         let mut mv_board = board.clone();
-        mv_board.execute_move(&v_move, player);
+        mv_board.execute_move(&valid_move, player);
 
         // Spawn threads
         let handle = thread::spawn(move || {
             // Thread node
-            let t_node = Node {
-                mv: v_move,
+            let thread_node = Node {
+                mv: valid_move,
                 score: 0,
                 children: Vec::new(),
             };
-            // Necessary?
-            let result_node = bot_rec(&mv_board, player, max_depth, 0, t_node);
+
+            let new_player = Player::new(player.oppo(), !player.bot);
+
+            let result_node = bot_rec(&mv_board, new_player, max_depth, 0, thread_node);
 
             // Return node
             return result_node
@@ -80,7 +81,7 @@ pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
             bot_max_score = child.score;
         }
     }
-
+    println!("MAX SCORE>>>: {:#?}", bot_max_score);
     // Return 'best' bot move
     return bot_move
 }
@@ -112,24 +113,20 @@ fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut no
         let mut board_new = board.clone();
 
         // Flip color
-        let player_new = Player {
-            player_type: PlayerType::Bot,
-            disk: player.oppo,
-            oppo: player.disk,
-            topd: player.topd,
-        };
+        let player_new = Player::new(player.oppo(), !player.bot);
         // Execute move on the new board
         board_new.execute_move(&mv, player);
 
         // Initiate new node
         let new_node = Node {
             mv: mv.clone(),
-            score: calc_score(&board_new, mv.mv_int, player),
+            score: calc_score(&board_new, mv.mv_int, player, depth + 1),
             children: Vec::new(),
         };
 
         // Recursive
         let child_node = bot_rec(&mut board_new, player_new, max_depth, depth + 1, new_node);
+
         node.add_child(child_node);
     }
 
@@ -141,39 +138,44 @@ fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut no
 }
 
 // Calculate score for a Node
-fn calc_score(board: &Board, mv: usize, player: Player) -> isize {
+fn calc_score(board: &Board, mv: usize, player: Player, depth: usize) -> isize {
     // score: tuple (black, white)
     let score = board.score();
 
     // Basic board score; Return score is (my piece count - their piece count)
-    let mut return_score = match player.disk {
+    let mut return_score = match player.color {
         Disk::Black => {
             if score.0 == 0 {
-                -1_000_000
+                -1_000
+            } else if score.1 == 0 {
+                1_000
             } else {
                 score.1 as isize - score.0 as isize
             }
         },
         Disk::White => {
             if score.1 == 0 {
-                -1_000_000
+                -1_000
+            } else if score.0 == 0 {
+                1_000
             } else {
                 score.0 as isize - score.1 as isize
             }
         }
-        Disk::Empty => panic!("Impossibure Empty disk in return score."),
+        _ => panic!("Impossibure disk type in return score."),
     };
 
-    // If my color; postive, otherwhise negative
     match mv {
-        0 | 7 | 56 | 63 => return_score = -20_000,
+        0 | 7 | 56 | 63 => {
+            return_score = 9_999_999_999;
+        },
         _ => (),
     }
 
     // Retrun score; positive for me, negative for opponent
-    if player.topd == player.disk {
-        return return_score
+    if player.bot {
+        return (return_score / (depth * depth * depth * depth) as isize)
     } else {
-        return return_score * -1
+        return (return_score / (depth * depth * depth * depth) as isize * -1)
     }
 }

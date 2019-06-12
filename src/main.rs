@@ -23,10 +23,13 @@ impl Board {
         let mut field = [Disk::Empty; 64];
 
         // Standard start layout
+        // White start positions
         field[27] = Disk::White;
+        field[36] = Disk::White;
+
+        // Black start positions
         field[28] = Disk::Black;
         field[35] = Disk::Black;
-        field[36] = Disk::White;
 
         // Return the Board
         return Board {
@@ -63,13 +66,13 @@ impl Board {
     // stones:         Move struct
     fn execute_move(&mut self, stones: &Move, player: Player) {
         // Set down own stone
-        self.field[stones.mv_int] = player.disk;
+        self.field[stones.mv_int] = player.color;
 
         // For every vector/line iterate
         for vector in &stones.flips {
             for x in vector {
                 // Flip stones
-                self.field[*x] = player.disk;
+                self.field[*x] = player.color;
             }
         }
     }
@@ -89,14 +92,7 @@ impl Board {
     }
 }
 
-// PlayerTypes enum
-#[derive(Clone,Copy)]
-enum PlayerType {
-    Bot,
-    Hmn,
-}
-
-// Disk colours
+// Disk colours + empty for board
 #[derive(Clone,Copy,Debug,PartialEq)]
 enum Disk {
     Black,
@@ -107,15 +103,25 @@ enum Disk {
 // Player Struct
 #[derive(Clone,Copy)]
 pub struct Player {
-    // Player type
-    player_type: PlayerType,
-    // Disks: own and opponent
-    disk: Disk,
-    oppo: Disk,
-    // Top Disk (for bot)
-    topd: Disk,
+    color: Disk,
+    bot: bool,
 }
 
+impl Player {
+    fn new(c: Disk, b: bool) -> Player {
+        Player {
+            color: c,
+            bot: b,
+        }
+    }
+    fn oppo(&self) -> Disk {
+        match self.color {
+            Disk::Black => Disk::White,
+            Disk::White => Disk::Black,
+            _ => panic!("Impossibrue color on oppo function"),
+        }
+    }
+}
 
 // Simple struct for move
 #[derive(Clone,Debug)]
@@ -147,19 +153,8 @@ fn main() {
     println!("Start:");
     board.print();
 
-    let player1 = Player {
-        player_type: PlayerType::Hmn,
-        disk: Disk::Black,
-        oppo: Disk::White,
-        topd: Disk::Black,
-    };
-
-    let player2 = Player {
-        player_type: PlayerType::Bot,
-        disk: Disk::White,
-        oppo: Disk::Black,
-        topd: Disk::White,
-    };
+    let player1 = Player::new(Disk::Black, false);
+    let player2 = Player::new(Disk::White, true);
 
     // Game loop
     while ! finished {
@@ -313,40 +308,40 @@ pub fn check_neighbours(board: &Board, pos: usize, player: Player) -> Vec<usize>
     // Check left of position
     // Check if we are not in left column
     if pos != 0 && pos % 8 != 0 {
-        if board.field[pos - 1] == player.oppo {
+        if board.field[pos - 1] == player.oppo() {
             neighbours.push(pos - 1);
         }
     }
     // Check right of position
     // Check if we are not in right colum
     if pos != 63 && (pos + 1) % 8 != 0 {
-        if board.field[pos + 1] == player.oppo {
+        if board.field[pos + 1] == player.oppo() {
             neighbours.push(pos + 1);
         }
     }
     // Check above position
     // Check if we are not on top row
     if pos > 7 {
-        if board.field[pos - 8] == player.oppo {
+        if board.field[pos - 8] == player.oppo() {
             neighbours.push(pos - 8);
         }
-        if (pos + 1) % 8 != 0 && board.field[pos - 7] == player.oppo {
+        if (pos + 1) % 8 != 0 && board.field[pos - 7] == player.oppo() {
             neighbours.push(pos - 7);
         }
-        if pos % 8 != 0 && board.field[pos - 9] == player.oppo {
+        if pos % 8 != 0 && board.field[pos - 9] == player.oppo() {
             neighbours.push(pos - 9);
         }
     }
     // Check below position
     // Check if we're not on bottom row
     if pos < 54 {
-        if board.field[pos + 8] == player.oppo {
+        if board.field[pos + 8] == player.oppo() {
             neighbours.push(pos + 8);
         }
-        if pos % 8 != 0&& board.field[pos + 7] == player.oppo {
+        if pos % 8 != 0&& board.field[pos + 7] == player.oppo() {
             neighbours.push(pos + 7);
         }
-        if (pos + 2) % 8 != 0 && board.field[pos + 9] == player.oppo {
+        if (pos + 2) % 8 != 0 && board.field[pos + 9] == player.oppo() {
             neighbours.push(pos + 9);
         }
     }
@@ -405,9 +400,9 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, player: P
             // If next pos matches opp disk; add to list and push list to flip-list
             if next == Disk::Empty {
                 break
-            } else if next == player.oppo {
+            } else if next == player.oppo() {
                 fp.push(pos as usize);
-            } else if next == player.disk {
+            } else if next == player.color {
                 fp.push(pos as usize);
                 flips.push(fp);
                 break
@@ -429,18 +424,8 @@ mod tests {
         let mut stall = 0;
         loop {
             let depth = 3;
-            let bot0 = Player {
-                player_type: PlayerType::Bot,
-                disk: Disk::Black,
-                oppo: Disk::White,
-                topd: Disk::Black,
-            };
-            let bot1 = Player {
-                player_type: PlayerType::Bot,
-                disk: Disk::White,
-                oppo: Disk::Black,
-                topd: Disk::White,
-            };
+            let bot0 = Player::new(Disk::Black, true);
+            let bot1 = Player::new(Disk::White, true);
 
             let val_moves = get_valid_moves(&board, bot0);
             println!("MOVE *");
@@ -457,6 +442,7 @@ mod tests {
                 stall = 0;
             }
             let bot_move = bot::bot_turn(&mut board, bot0, depth);
+            println!("BOT MOVE: {:?}", bot_move);
             board.execute_move(&bot_move, bot0);
             board.print();
 
@@ -475,6 +461,7 @@ mod tests {
                 stall = 0;
             }
             let bot_move = bot::bot_turn(&mut board, bot1, depth);
+            println!("BOT MOVE: {:?}", bot_move);
             board.execute_move(&bot_move, bot1);
             board.print();
         }
