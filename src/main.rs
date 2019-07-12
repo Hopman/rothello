@@ -1,10 +1,20 @@
 // IMPORTS
 //
 // std
+use std::collections::HashMap;
 use std::io::{self};
+use std::path::Path;
+
+#[macro_use]
+extern crate lazy_static;
 
 // mods
 mod bot;
+
+// extern
+extern crate config;
+
+use config::*;
 
 // STRUCTS
 //
@@ -20,7 +30,7 @@ impl Board {
     // Setup board
     fn start() -> Board {
         // Field of board is always 8x8
-        let mut field = [Disk::Empty; 64];
+        let mut field = [Disk::None; 64];
 
         // Standard start layout
         // White start positions
@@ -56,20 +66,21 @@ impl Board {
             }
 
             // Print row: Row number (top high) and row
-            println!("{} [{}]", 8-i, v);
+            println!("{} [{}]", i + 1, v);
         }
         // Empty line
         println!("");
     }
 
     // Execute move on board
-    // stones:         Move struct
-    fn execute_move(&mut self, stones: &Move, player: Player) {
+    //
+    // move_: Move struct
+    fn execute_move(&mut self, move_: &Move, player: Player) {
         // Set down own stone
-        self.field[stones.mv_int] = player.color;
+        self.field[move_.mv_int] = player.color;
 
         // For every vector/line iterate
-        for vector in &stones.flips {
+        for vector in &move_.flips {
             for x in vector {
                 // Flip stones
                 self.field[*x] = player.color;
@@ -85,7 +96,7 @@ impl Board {
             match i {
                 Disk::Black => score.0 += 1,
                 Disk::White => score.1 += 1,
-                Disk::Empty => (),
+                Disk::None => (),
             }
         }
         return score
@@ -97,7 +108,7 @@ impl Board {
 enum Disk {
     Black,
     White,
-    Empty,
+    None,
 }
 
 // Player Struct
@@ -108,10 +119,10 @@ pub struct Player {
 }
 
 impl Player {
-    fn new(c: Disk, b: bool) -> Player {
+    fn new(color: Disk, bot: bool) -> Player {
         Player {
-            color: c,
-            bot: b,
+            color: color,
+            bot: bot,
         }
     }
     fn oppo(&self) -> Disk {
@@ -139,33 +150,78 @@ impl Move {
     }
 }
 
+// Lazy statics from configuration file
+lazy_static! {
+    static ref SETTINGS: Config = {
+        let mut settings = Config::new();
+        settings.merge(File::with_name("conf/settings.toml")).unwrap();
+        settings
+    };
+    static ref MAX_DEPTH: usize = SETTINGS.get("max_depth").unwrap();
+    static ref DEPTH_WEIGHT: usize = SETTINGS.get("depth_weight").unwrap();
+    static ref CORNER_VALUE: isize = SETTINGS.get("corner_value").unwrap();
+    static ref ZERO_MOVE_VALUE: isize = SETTINGS.get("zero_move_value").unwrap(); 
+}
 
 // MAIN
 fn main() {
     // Setup
-    let mut finished = false;
+    let mut finished = (false, false);
     let mut board = Board::start();
 
-    // Get max depth
-    let depth = depth_input();
+    // Check for bots and create players
+    let players = players_input();
+    let black = Player::new(Disk::Black, players.0);
+    let white = Player::new(Disk::White, players.1);
 
     // Start print
     println!("Start:");
     board.print();
 
-    let player1 = Player::new(Disk::Black, false);
-    let player2 = Player::new(Disk::White, true);
-
     // Game loop
-    while ! finished {
-        // Player turn (white)
-        finished = turn(&mut board, player1);
+    loop {
+        // Player 1 turn
+        if black.bot {
+            finished.0 = bot_turn(&mut board, black);
+        } else {
+            finished.0 = turn(&mut board, black);
+        }
+
+        // Print board
         board.print();
 
-        let bot_move = bot::bot_turn(&mut board, player2, depth);
-        board.execute_move(&bot_move, player2);
+        // Check if either player made a move
+        if finished.0 && finished.1 {
+            println!("No more valid moves.\n\n\t::END::\n");
+            break
+        }
+
+        //thread::sleep(time::Duration::new(1, 0));
+
+        // Player 2 turn
+        if white.bot {
+            finished.1 = bot_turn(&mut board, white);
+        } else {
+            finished.1 = turn(&mut board, white);
+        }
+
+        // Print board
         board.print();
+
+        // Check if either player made a move
+        if finished.0 && finished.1 {
+            println!("No more valid moves.");
+            break
+        }
     }
+    let final_score = board.score();
+    println!("Final score: {}-{}", final_score.0, final_score.1);
+    let winner = if final_score.0 > final_score.1 {
+        "Black"
+    } else {
+        "White"
+    };
+    println!("Winner:      {}", winner);
 }
 
 // Get max depth from input
@@ -194,8 +250,47 @@ fn depth_input() -> usize {
     }
 }
 
+// Determine if Player is human or bot from input
+//
+//  return: (p1 bool, p2 bool); if true Player is a bot
+fn players_input() -> (bool, bool) {
+
+    // Initiate players; both as human
+    let mut players = (false, false);
+
+    // Player 1: Black
+    println!("Is player black a bot?");
+    let mut black = String::new();
+
+    // Read from input
+    io::stdin().read_line(&mut black).expect("Could not read?");
+
+    // Trimm and check
+    let black_trimmed = black.trim();
+    if black_trimmed == "yes" || black_trimmed == "y" {
+        players.0 = true;
+    }
+
+    // Player 2: White
+    println!("Is player white a bot?");
+    let mut white = String::new();
+
+    // Read from input
+    io::stdin().read_line(&mut white).expect("Could not read?");
+
+    // Trimm and check
+    let white_trimmed = white.trim();
+    if white_trimmed == "yes" || white_trimmed == "y" {
+        players.1 = true;
+    }
+
+    // Return
+    return players
+}
+
 // Turn function: Get valid moves and then ask user for move
 //  board:  Board Struct
+//  player: Player Struct
 //
 //  return: bool; if true, the gameloop ends
 fn turn(board: &mut Board, player: Player) -> bool {
@@ -225,8 +320,8 @@ fn turn(board: &mut Board, player: Player) -> bool {
             8 => 'h',
             _ => panic!("Impossibru X value"),
         };
-        // Y position (top = 8)
-        let y = 8 - (m.mv_int / 8);
+        // Y position (top = 1)
+        let y = (m.mv_int / 8) + 1;
 
         // Create position string
         let pos = format!("{}{}", x, y);
@@ -264,6 +359,26 @@ fn turn(board: &mut Board, player: Player) -> bool {
     return false
 }
 
+// Bot turn function
+//  board:     Board Struct
+//  player:    Player Struct
+//  max_depth: Maximum node depth usize
+//
+//   return: succesful turn bool
+fn bot_turn(board: &mut Board, player: Player) -> bool {
+    // Bot move
+    let bot_move_option = bot::bot_turn(board, player);
+
+    if bot_move_option.is_none() {
+        // If the bot has no moves, return true
+        return true
+    } else {
+        // If the bot returns a move, execute and return true
+        board.execute_move(&bot_move_option.unwrap(), player);
+        return false
+    }
+}
+
 // Get valid moves: walk through the board and check what moves are valid
 //  board: Board struct
 //
@@ -274,7 +389,7 @@ fn get_valid_moves(board: &Board, player: Player) -> Vec<Move> {
     // Iterate over all squares in the field
     for i in 0..64 {
         // If the square isn't empty go to next
-        if board.field[i] != Disk::Empty {
+        if board.field[i] != Disk::None {
             continue
         }
         // Get all neighbouring squares; if no opponent piece is found go to next
@@ -341,7 +456,7 @@ pub fn check_neighbours(board: &Board, pos: usize, player: Player) -> Vec<usize>
         if pos % 8 != 0&& board.field[pos + 7] == player.oppo() {
             neighbours.push(pos + 7);
         }
-        if (pos + 2) % 8 != 0 && board.field[pos + 9] == player.oppo() {
+        if (pos + 1) % 8 != 0 && board.field[pos + 9] == player.oppo() {
             neighbours.push(pos + 9);
         }
     }
@@ -383,22 +498,22 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, player: P
             }
 
             // If step is to the right, don't move to next line
-            if step == 1 && (pos + step) % 8 == 0 {
+            if (step == 1 || step == 9 || step == -7) && (pos + step) % 8 == 0 {
                 break
             }
 
             // Do not move to previous line when step is to the left
-            if step == -1 && pos % 8 == 0 {
+            if (step == -1 || step == -9 || step == 7) && pos % 8 == 0 {
                 break
             }
 
             // Get disk of next position
             let next = board.field[(pos + step) as usize];
 
-            // If next pos is None there's no disk
+            // If next pos is None Disk there's no disk
             // If next pos matches own disk; add to list
             // If next pos matches opp disk; add to list and push list to flip-list
-            if next == Disk::Empty {
+            if next == Disk::None {
                 break
             } else if next == player.oppo() {
                 fp.push(pos as usize);
@@ -419,58 +534,47 @@ mod tests {
 
     #[test]
     fn botfight() {
-        println!("Ready...\nSteady....\nFIGHT!\n");
+        // Setup
+        let mut finished = (false, false);
         let mut board = Board::start();
-        let mut stall = 0;
+
+        // Check for bots and create players
+        let white = Player::new(Disk::Black, true);
+        let black = Player::new(Disk::White, true);
+
+        // Start print
+        println!("Start:");
+        board.print();
+
+        // Game loop
         loop {
-            let depth = 3;
-            let bot0 = Player::new(Disk::Black, true);
-            let bot1 = Player::new(Disk::White, true);
-
-            let val_moves = get_valid_moves(&board, bot0);
-            println!("MOVE *");
-            if val_moves.len() == 0 {
-                println!("STALLLING *");
-                stall += 1;
-                if stall >= 2 {
-                    println!("BREAKING *");
-                    break
-                } else {
-                    continue
-                }
+            // Player 1 turn
+            if black.bot {
+                finished.0 = bot_turn(&mut board, black);
             } else {
-                stall = 0;
+                finished.0 = turn(&mut board, white);
             }
-            let bot_move = bot::bot_turn(&mut board, bot0, depth);
-            println!("BOT MOVE: {:?}", bot_move);
-            board.execute_move(&bot_move, bot0);
-            board.print();
 
-            let val_moves = get_valid_moves(&board, bot1);
-            println!("MOVE o");
-            if val_moves.len() == 0 {
-                println!("STALLING o");
-                stall += 1;
-                if stall >= 2 {
-                    println!("BREAKING o");
-                    break
-                } else {
-                    continue
-                }
-            } else {
-                stall = 0;
+            // Check if either player made a move
+            if finished.0 && finished.1 {
+                println!("No more valid moves.\n\n\t::END::\n");
+                break
             }
-            let bot_move = bot::bot_turn(&mut board, bot1, depth);
-            println!("BOT MOVE: {:?}", bot_move);
-            board.execute_move(&bot_move, bot1);
-            board.print();
+
+            // Player 2 turn
+            if white.bot {
+                finished.1 = bot_turn(&mut board, white);
+            } else {
+                finished.1 = turn(&mut board, black);
+            }
+
+            // Check if either player made a move
+            if finished.0 && finished.1 {
+                println!("No more valid moves.\n\n\t::END::\n");
+                break
+            }
         }
         let final_score = board.score();
-        println!("Final score: {}-{}", final_score.0, final_score.1);
-        if final_score.1 > final_score.0 {
-            println!("o-Bot Wins!!!");
-        } else {
-            println!("*-Bot Wins!!!");
-        }
+        println!("Final score (black-white): {}-{}", final_score.0, final_score.1);
     }
 }

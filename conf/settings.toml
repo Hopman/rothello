@@ -1,0 +1,4 @@
+max_depth = 4
+depth_weight = 2
+corner_value = 100
+zero_move_value = -1_000
