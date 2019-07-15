@@ -17,14 +17,20 @@ impl Node {
     }
 }
 
-// Public funciont
+// Public function bot's turn
 //  board:      Board
 //  max_depth:  maximum depth of Nodes
 //
 //  return:     Return move position
-pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
+pub fn bot_turn(board: &mut Board, player: Player) -> Option<Move> {
     // Get valid moves for bot
     let valid_moves = get_valid_moves(&board, player);
+    if valid_moves.len() == 0 {
+        return None
+    }
+
+    // Keep original player
+    let bot = player.clone();
 
     // Create top node
     let mut top_node = Node {
@@ -54,7 +60,7 @@ pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
 
             let new_player = Player::new(player.oppo(), !player.bot);
 
-            let result_node = bot_rec(&mv_board, new_player, max_depth, 0, thread_node);
+            let result_node = bot_rec(&mv_board, bot, new_player, 0, thread_node);
 
             // Return node
             return result_node
@@ -81,21 +87,21 @@ pub fn bot_turn(board: &mut Board, player: Player, max_depth: usize) -> Move {
             bot_max_score = child.score;
         }
     }
-    println!("MAX SCORE>>>: {:#?}", bot_max_score);
     // Return 'best' bot move
-    return bot_move
+    return Some(bot_move)
 }
 
 // Recursive bot function
-//  board:      Board
+//  board:      Board Struct
+//  player:     Player Struct
 //  max_depth:  Maximum depth of nodes
-//  depth:      Depth of recursion
-//  node:       'parent' Node
+//  depth:      Depth of current node
+//  node:       Parent Node
 //
-//  return:     Child Node
-fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut node: Node) -> Node {
+//  return:     Node
+fn bot_rec(board: &Board, bot: Player, player: Player, depth: usize, mut node: Node) -> Node {
     // Expect depth
-    if depth > max_depth {
+    if depth > *MAX_DEPTH {
         return node;
     }
 
@@ -113,69 +119,59 @@ fn bot_rec(board: &Board, player: Player, max_depth: usize, depth: usize, mut no
         let mut board_new = board.clone();
 
         // Flip color
-        let player_new = Player::new(player.oppo(), !player.bot);
+        let player_new = Player::new(player.oppo(), true);
+
         // Execute move on the new board
         board_new.execute_move(&mv, player);
 
         // Initiate new node
         let new_node = Node {
             mv: mv.clone(),
-            score: calc_score(&board_new, mv.mv_int, player, depth + 1),
+            score: calc_score(&board_new, mv.mv_int, bot, player, depth + 1),
             children: Vec::new(),
         };
 
         // Recursive
-        let child_node = bot_rec(&mut board_new, player_new, max_depth, depth + 1, new_node);
+        let child_node = bot_rec(&mut board_new, bot, player_new, depth + 1, new_node);
 
         node.add_child(child_node);
     }
 
     // Increment scores
     for child in &node.children {
-        node.score += child.score;
+        node.score += (child.score / ((depth * *DEPTH_WEIGHT) as isize + 1));
     }
     return node
 }
 
 // Calculate score for a Node
-fn calc_score(board: &Board, mv: usize, player: Player, depth: usize) -> isize {
+fn calc_score(board: &Board, mv: usize, bot: Player, player: Player, depth: usize) -> isize {
     // score: tuple (black, white)
-    let score = board.score();
+    let score_tuple = board.score();
 
-    // Basic board score; Return score is (my piece count - their piece count)
-    let mut return_score = match player.color {
-        Disk::Black => {
-            if score.0 == 0 {
-                -1_000
-            } else if score.1 == 0 {
-                1_000
-            } else {
-                score.1 as isize - score.0 as isize
-            }
-        },
-        Disk::White => {
-            if score.1 == 0 {
-                -1_000
-            } else if score.0 == 0 {
-                1_000
-            } else {
-                score.0 as isize - score.1 as isize
-            }
+    let mut score_int = match player.color {
+        Disk::Black => if score_tuple.0 == 0 {
+            *ZERO_MOVE_VALUE
+        } else {
+            score_tuple.0 as isize - score_tuple.1 as isize
         }
-        _ => panic!("Impossibure disk type in return score."),
+        Disk::White => if score_tuple.1 == 0 {
+            *ZERO_MOVE_VALUE
+        } else {
+            score_tuple.1 as isize - score_tuple.0 as isize
+        }
+        Disk::None => panic!("Player color cannot be Emtpy. calc_score function")
     };
 
-    match mv {
-        0 | 7 | 56 | 63 => {
-            return_score = 9_999_999_999;
-        },
-        _ => (),
-    }
+    score_int += match mv {
+        0 | 7 | 56 | 63 => *CORNER_VALUE,
+        _ => 0,
+    };
 
-    // Retrun score; positive for me, negative for opponent
-    if player.bot {
-        return (return_score / (depth * depth * depth * depth) as isize)
-    } else {
-        return (return_score / (depth * depth * depth * depth) as isize * -1)
+    if player.color != bot.color {
+        score_int *= -1;
     }
+    score_int = score_int / (depth*depth) as isize ;
+
+    return score_int
 }
