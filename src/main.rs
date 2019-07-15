@@ -157,10 +157,10 @@ lazy_static! {
         settings.merge(File::with_name("conf/settings.toml")).unwrap();
         settings
     };
-    static ref MAX_DEPTH: usize = SETTINGS.get("max_depth").unwrap();
-    static ref DEPTH_WEIGHT: usize = SETTINGS.get("depth_weight").unwrap();
-    static ref CORNER_VALUE: isize = SETTINGS.get("corner_value").unwrap();
-    static ref ZERO_MOVE_VALUE: isize = SETTINGS.get("zero_move_value").unwrap(); 
+    static ref MAX_DEPTH: usize         = SETTINGS.get("max_depth").unwrap();
+    static ref DEPTH_WEIGHT: usize      = SETTINGS.get("depth_weight").unwrap();
+    static ref CORNER_VALUE: isize      = SETTINGS.get("corner_value").unwrap();
+    static ref ZERO_MOVE_VALUE: isize   = SETTINGS.get("zero_move_value").unwrap();
 }
 
 // MAIN
