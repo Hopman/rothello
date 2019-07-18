@@ -1,4 +1,5 @@
-max_depth = 4
-depth_weight = 2
-corner_value = 100
+max_depth = 5
+depth_weight = 3
+corner_value = 10_000
 zero_move_value = -1_000
+winlose_value = 25_000

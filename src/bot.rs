@@ -2,8 +2,10 @@ use crate::*;
 
 use std::thread;
 
+use rand;
+
 // Simple node struct for tree-like moves
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct Node {
     mv: Move,
     score: isize,
@@ -58,13 +60,14 @@ pub fn bot_turn(board: &mut Board, player: Player) -> Option<Move> {
                 children: Vec::new(),
             };
 
-            let new_player = Player::new(player.oppo(), !player.bot);
+            let new_player = Player::new(player.oppo(), true);
 
-            let result_node = bot_rec(&mv_board, bot, new_player, 0, thread_node);
+            let result_node = recursive_bot(&mv_board, bot, new_player, 0, thread_node);
 
             // Return node
             return result_node
         });
+
         // Push handle to handles vector
         handles.push(handle);
     }
@@ -82,9 +85,16 @@ pub fn bot_turn(board: &mut Board, player: Player) -> Option<Move> {
 
     // TODO Fancy me
     for child in &top_node.children {
+
         if child.score > bot_max_score {
             bot_move = child.mv.clone();
             bot_max_score = child.score;
+
+        } else if child.score == bot_max_score {
+            if rand::random() {
+                bot_move = child.mv.clone();
+                bot_max_score = child.score;
+            }
         }
     }
     // Return 'best' bot move
@@ -99,9 +109,9 @@ pub fn bot_turn(board: &mut Board, player: Player) -> Option<Move> {
 //  node:       Parent Node
 //
 //  return:     Node
-fn bot_rec(board: &Board, bot: Player, player: Player, depth: usize, mut node: Node) -> Node {
+fn recursive_bot(board: &Board, bot: Player, player: Player, depth: usize, mut node: Node) -> Node {
     // Expect depth
-    if depth > *MAX_DEPTH {
+    if depth >= *MAX_DEPTH {
         return node;
     }
 
@@ -127,12 +137,12 @@ fn bot_rec(board: &Board, bot: Player, player: Player, depth: usize, mut node: N
         // Initiate new node
         let new_node = Node {
             mv: mv.clone(),
-            score: calc_score(&board_new, mv.mv_int, bot, player, depth + 1),
+            score: evaluate(&board_new, mv.mv_int, bot, player),
             children: Vec::new(),
         };
 
         // Recursive
-        let child_node = bot_rec(&mut board_new, bot, player_new, depth + 1, new_node);
+        let child_node = recursive_bot(&mut board_new, bot, player_new, depth + 1, new_node);
 
         node.add_child(child_node);
     }
@@ -144,23 +154,19 @@ fn bot_rec(board: &Board, bot: Player, player: Player, depth: usize, mut node: N
     return node
 }
 
-// Calculate score for a Node
-fn calc_score(board: &Board, mv: usize, bot: Player, player: Player, depth: usize) -> isize {
+// Evaluate Node score
+fn evaluate(board: &Board, mv: usize, bot: Player, player: Player) -> isize {
     // score: tuple (black, white)
     let score_tuple = board.score();
 
     let mut score_int = match player.color {
-        Disk::Black => if score_tuple.0 == 0 {
-            *ZERO_MOVE_VALUE
-        } else {
+        Disk::Black => {
             score_tuple.0 as isize - score_tuple.1 as isize
         }
-        Disk::White => if score_tuple.1 == 0 {
-            *ZERO_MOVE_VALUE
-        } else {
+        Disk::White => {
             score_tuple.1 as isize - score_tuple.0 as isize
         }
-        Disk::None => panic!("Player color cannot be Emtpy. calc_score function")
+        Disk::None => panic!("Player color cannot be Emtpy. [bot::calc_score]")
     };
 
     score_int += match mv {
@@ -168,10 +174,15 @@ fn calc_score(board: &Board, mv: usize, bot: Player, player: Player, depth: usiz
         _ => 0,
     };
 
+    if score_tuple.2 && score_int <= 0 {
+        score_int -= *WINLOSE_VALUE;
+    }
+    if score_tuple.2 && score_int >= 0 {
+        score_int += *WINLOSE_VALUE;
+    }
+
     if player.color != bot.color {
         score_int *= -1;
     }
-    score_int = score_int / (depth*depth) as isize ;
-
     return score_int
 }

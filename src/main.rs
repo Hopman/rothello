@@ -1,9 +1,7 @@
 // IMPORTS
 //
 // std
-use std::collections::HashMap;
 use std::io::{self};
-use std::path::Path;
 
 #[macro_use]
 extern crate lazy_static;
@@ -80,23 +78,21 @@ impl Board {
         self.field[move_.mv_int] = player.color;
 
         // For every vector/line iterate
-        for vector in &move_.flips {
-            for x in vector {
-                // Flip stones
-                self.field[*x] = player.color;
-            }
+        for x in &move_.flips {
+            // Flip stones
+            self.field[*x] = player.color;
         }
     }
 
     // Count score of board
     //                  black, white
-    fn score(&self) -> (usize, usize) {
-        let mut score = (0, 0);
+    fn score(&self) -> (usize, usize, bool) {
+        let mut score = (0, 0, true);
         for i in self.field.iter() {
             match i {
                 Disk::Black => score.0 += 1,
                 Disk::White => score.1 += 1,
-                Disk::None => (),
+                Disk::None => score.2 = false,
             }
         }
         return score
@@ -104,7 +100,7 @@ impl Board {
 }
 
 // Disk colours + empty for board
-#[derive(Clone,Copy,Debug,PartialEq)]
+#[derive(Clone,Copy,PartialEq)]
 enum Disk {
     Black,
     White,
@@ -118,49 +114,69 @@ pub struct Player {
     bot: bool,
 }
 
+// Player functions
 impl Player {
+    // Create new Player
+    // color: Disk
+    // bot:   bool
+    //
+    //  return: Player Struct
     fn new(color: Disk, bot: bool) -> Player {
         Player {
             color: color,
             bot: bot,
         }
     }
+    // Get opponent
+    //
+    //  return: opponent color
     fn oppo(&self) -> Disk {
         match self.color {
             Disk::Black => Disk::White,
             Disk::White => Disk::Black,
-            _ => panic!("Impossibrue color on oppo function"),
+            _ => panic!("Impossible opponent color in Player Struct oppo function."),
         }
     }
 }
 
 // Simple struct for move
-#[derive(Clone,Debug)]
+#[derive(Clone)]
 pub struct Move {
     mv_int: usize,
-    flips:  Vec<Vec<usize>>,
+    flips:  Vec<usize>,
 }
 
+// Move functions
 impl Move {
+    // Create new empty Move
     fn new() -> Move {
         Move {
-            mv_int: 0,
-            flips: vec![vec![0]],
+            mv_int: usize::min_value(),
+            flips: Vec::new(),
         }
     }
 }
 
 // Lazy statics from configuration file
 lazy_static! {
+    // Read config file
     static ref SETTINGS: Config = {
         let mut settings = Config::new();
         settings.merge(File::with_name("conf/settings.toml")).unwrap();
         settings
     };
+    // Create lazy statics (for bot use only)
+    //
+    // max_depth: how many steps ahead are calculated
     static ref MAX_DEPTH: usize         = SETTINGS.get("max_depth").unwrap();
+    // depth_weight: how heavy do the deeper steps weigh
     static ref DEPTH_WEIGHT: usize      = SETTINGS.get("depth_weight").unwrap();
+    // corner_value: how important are the corners
     static ref CORNER_VALUE: isize      = SETTINGS.get("corner_value").unwrap();
+    // zero_move_value: how important is it to keep an option on next move
     static ref ZERO_MOVE_VALUE: isize   = SETTINGS.get("zero_move_value").unwrap();
+    // winlose_value: how important is winning or losing
+    static ref WINLOSE_VALUE: isize     = SETTINGS.get("winlose_value").unwrap();
 }
 
 // MAIN
@@ -192,11 +208,9 @@ fn main() {
 
         // Check if either player made a move
         if finished.0 && finished.1 {
-            println!("No more valid moves.\n\n\t::END::\n");
+            println!("No more valid moves.");
             break
         }
-
-        //thread::sleep(time::Duration::new(1, 0));
 
         // Player 2 turn
         if white.bot {
@@ -214,6 +228,7 @@ fn main() {
             break
         }
     }
+    // Get + print final socre and winner
     let final_score = board.score();
     println!("Final score: {}-{}", final_score.0, final_score.1);
     let winner = if final_score.0 > final_score.1 {
@@ -222,32 +237,6 @@ fn main() {
         "White"
     };
     println!("Winner:      {}", winner);
-}
-
-// Get max depth from input
-//
-// return:  max_depth usize
-fn depth_input() -> usize {
-    // While there is no valid input, keep asking
-    loop {
-        // Get input from stdin
-        println!("Give max depth:");
-        let mut depth_input = String::new();
-        io::stdin().read_line(&mut depth_input).expect("Could not read?");
-
-        // Trim input
-        let depth_input_trimmed = depth_input.trim();
-        match depth_input_trimmed.parse::<usize>() {
-            Ok(n) => {
-                return n
-            },
-            Err(e) => {
-                println!("Error: {}", e);
-                // On error, try again
-                continue
-            },
-        };
-    }
 }
 
 // Determine if Player is human or bot from input
@@ -350,7 +339,6 @@ fn turn(board: &mut Board, player: Player) -> bool {
             if (choice.0) == player_input_trimmed {
                 // Input was valid
                 valid_input = true;
-                // Pass valid move (usize, <Vec<Vec<usize>>>)
                 board.execute_move(choice.1, player);
                 break
             }
@@ -469,7 +457,7 @@ pub fn check_neighbours(board: &Board, pos: usize, player: Player) -> Vec<usize>
 //  position: Position on board
 //
 //  return:   List of vectors; vectors are pieces of opponent that'll be flipped
-pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, player: Player) -> Vec<Vec<usize>> {
+pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, player: Player) -> Vec<usize> {
     // Initiate vector
     let mut flips = Vec::new();
 
@@ -519,7 +507,7 @@ pub fn get_flips(board: &Board, targets: &Vec<usize>, position: usize, player: P
                 fp.push(pos as usize);
             } else if next == player.color {
                 fp.push(pos as usize);
-                flips.push(fp);
+                flips.append(&mut fp);
                 break
             }
         }
